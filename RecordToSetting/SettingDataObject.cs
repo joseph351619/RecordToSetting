@@ -8,22 +8,25 @@ namespace RecordToSetting
 {
     public class SettingDataObject
     {
-        public SettingDataObject(Guid drugID, double dose, string unit, string frequency, string route, int? days, double quantity)
+        public SettingDataObject(Guid drugID, double dose, string unit, string frequency, string route, 
+                                int? days, string quantity, string drugName)
         {
             DrugID    = drugID     ;
+            DrugName  = drugName   ;
             Dose      = dose       ;
             Unit      = unit       ;
             Frequency = frequency  ;
             Route     = route      ;
             Days      = days       ;
-            Quantity  = quantity    ;
+            Quantity  = quantity   ;
         }
         public Guid   DrugID      { get; set; }
+        public string DrugName { get; set; }
         public double      Dose        { get; set; }
         public string Unit        { get; set; }
         public string Frequency   { get; set; }
         public string     Route       { get; set; }
         public int?     Days        { get; set; }
-        public double Quantity    { get; set; }
+        public string Quantity    { get; set; }
     }
 }

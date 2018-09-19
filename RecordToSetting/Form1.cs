@@ -22,11 +22,23 @@ namespace RecordToSetting
         {
             try
             {
-                dgvRecordList.DataSource = GetRecordList();
-                dgvSettingList.DataSource = GetSettingList();
-            }catch(Exception ex)
+                GetDataGridView();
+            }
+            catch(Exception ex)
             {
                 MessageBox.Show(ex.ToString());
+            }
+        }
+        private void GetDataGridView()
+        {
+            dgvRecordList.DataSource = GetRecordList();
+            dgvSettingList.DataSource = GetSettingList();
+            foreach (DataGridViewRow row in dgvRecordList.Rows)
+            {
+                if (DrugIDExists((Guid)row.Cells["DrugID"].Value))
+                {
+                    row.DefaultCellStyle.BackColor = Color.Green;
+                }
             }
         }
         
@@ -95,23 +107,38 @@ namespace RecordToSetting
             using (SqlConnection conn = new SqlConnection(ConnectionString))
             {
                 conn.Open();
-                string commandString = "Select * From DrugSetting";
-                SqlCommand cmd = new SqlCommand(commandString, conn);
+                SqlCommand cmd = new SqlCommand(SettingCommand(), conn);
                 SqlDataReader reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
                     settingList.Add(new SettingDataObject(drugID: reader["DrugID"] == System.DBNull.Value ? default(Guid) : reader.GetGuid(reader.GetOrdinal("DrugID")),
+                                                          drugName: reader["DrugName"] == System.DBNull.Value ? default(string) : reader.GetString(reader.GetOrdinal("DrugName")),
                                                           dose: reader["Dose"] == System.DBNull.Value ? default(double) : reader.GetDouble(reader.GetOrdinal("Dose")),
                                                           unit: reader["Unit"] == System.DBNull.Value ? default(string) : reader.GetString(reader.GetOrdinal("Unit")),
                                                           frequency: reader["Frequency"] == System.DBNull.Value ? default(string) : reader.GetString(reader.GetOrdinal("Frequency")),
                                                           route: reader["Route"] == System.DBNull.Value ? default(string) : reader.GetString(reader.GetOrdinal("Route")),
                                                           days: reader["Days"] == System.DBNull.Value ? default(int?) : reader.GetInt32(reader.GetOrdinal("Days")),
-                                                          quantity: reader["Quantity"] == System.DBNull.Value ? default(double) : reader.GetDouble(reader.GetOrdinal("Quantity"))
+                                                          quantity: reader["Quantity"] == System.DBNull.Value ? default(string) : reader.GetString(reader.GetOrdinal("Quantity"))
                                                        ));
                 }
                 reader.Close();
             }
             return settingList;
+        }
+        private string SettingCommand()
+        {
+            StringBuilder commandString = new StringBuilder();
+            commandString.Clear();
+            commandString.Append(" select b.DrugID, ");
+            commandString.Append(" (select g.Title from drug g where g.GID = b.DrugID) as DrugName, ");
+            commandString.Append(" b.Dose, ");
+            commandString.Append(" (select g.ItemDescription from CodeFile g where g.id=b.Unit) as Unit, ");
+            commandString.Append(" (select g.ItemDescription from CodeFile g where g.id=b.Frequency) as Frequency, ");
+            commandString.Append(" (select g.ItemDescription from CodeFile g where g.id=b.Route) as Route, ");
+            commandString.Append(" b.Days,");
+            commandString.Append(" (select g.ItemDescription from CodeFile g where g.id=b.Quantity) as Quantity ");
+            commandString.Append(" from DrugSetting b ");
+            return commandString.ToString();
         }
 
         private void InsertSettingFromRecord(RecordDataObject record)
@@ -156,15 +183,62 @@ namespace RecordToSetting
 
         private void btnTransfer_Click(object sender, EventArgs e)
         {
-            RecordDataObject currentObject = (RecordDataObject)dgvRecordList.CurrentRow.DataBoundItem;
+            var selectedRows = dgvRecordList.SelectedRows
+                                .OfType<DataGridViewRow>()
+                                .Where(row => !row.IsNewRow)
+                                .ToArray();
             try
             {
-                InsertSettingFromRecord(currentObject);
+                foreach (var row in selectedRows)
+                {
+                    var record = (RecordDataObject)row.DataBoundItem;
+                    if (!DrugIDExists(record.DrugID))
+                    {
+                        InsertSettingFromRecord(record);
+                    }
+                }
+                GetDataGridView();
             }
             catch(Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
+        }
+        private bool DrugIDExists(Guid drugID)
+        {
+            using (SqlConnection conn = new SqlConnection(ConnectionString))
+            {
+                conn.Open();
+                string commandText = "Select Count(*) From DrugSetting Where DrugID = @DrugID";
+                SqlCommand cmd = new SqlCommand(commandText, conn);
+                cmd.Parameters.AddWithValue("@DrugID", drugID);
+                bool IsExist = (int)cmd.ExecuteScalar() > 0;
+                return IsExist;
+            }
+        }
+
+        private void btnExport_Click(object sender, EventArgs e)
+        {
+            copyAlltoClipboard();
+            Microsoft.Office.Interop.Excel.Application xlexcel;
+            Microsoft.Office.Interop.Excel.Workbook xlWorkBook;
+            Microsoft.Office.Interop.Excel.Worksheet xlWorkSheet;
+            object misValue = System.Reflection.Missing.Value;
+            xlexcel = new Microsoft.Office.Interop.Excel.Application();
+            xlexcel.Visible = true;
+            xlWorkBook = xlexcel.Workbooks.Add(misValue);
+            xlWorkSheet = (Microsoft.Office.Interop.Excel.Worksheet)xlWorkBook.Worksheets.get_Item(1);
+            Microsoft.Office.Interop.Excel.Range CR = (Microsoft.Office.Interop.Excel.Range)xlWorkSheet.Cells[1, 1];
+            CR.Select();
+            xlWorkSheet.PasteSpecial(CR, Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, true);
+        }
+
+        private void copyAlltoClipboard()
+        {
+            dgvSettingList.SelectAll();
+            DataObject dataObj = dgvSettingList.GetClipboardContent();
+            if (dataObj != null)
+                Clipboard.SetDataObject(dataObj);
         }
     }
 
