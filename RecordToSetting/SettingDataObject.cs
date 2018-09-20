@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace RecordToSetting
 {
-    public class SettingDataObject
+    public class SettingDataObject : CsvableBase
     {
         public SettingDataObject(Guid drugID, double dose, string unit, string frequency, string route, 
                                 int? days, string quantity, string drugName)

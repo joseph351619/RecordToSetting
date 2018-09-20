@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace RecordToSetting
 {
-    public class RecordDataObject
+    public class RecordDataObject 
     {
         public RecordDataObject(string patientID, string doctorName, DateTime? date, Guid drugID, string drugName,
                                 string frequency, int frequencyNumber, string route, int routeNumber, string unit, 
